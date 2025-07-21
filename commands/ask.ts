@@ -3,6 +3,7 @@ import { generateResponse } from '../llm/router';
 import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
+import { CodeAnalyzer } from '../utils/codeAnalyzer';
 
 export async function askCommand(question: string) {
   console.log('🤖 Analyzing your codebase to answer your question...\n');
@@ -11,21 +12,51 @@ export async function askCommand(question: string) {
     // Get codebase context
     const codebaseContext = await getCodebaseContext();
     
-    const prompt = `You are a helpful AI coding assistant analyzing a codebase. Here's what I know about the current project:
-
-## Codebase Structure:
-${codebaseContext.structure}
-
-## Key Files Content:
-${codebaseContext.keyFiles}
+    const prompt = `You are an expert software architect analyzing a TypeScript CLI codebase. Here's comprehensive analysis of the current project:
 
 ## Project Information:
 ${codebaseContext.projectInfo}
 
+## Code Analysis Results:
+**Architectural Patterns Detected:**
+${codebaseContext.codeAnalysis.insights.map(insight => 
+  `- ${insight.pattern} (${Math.round(insight.confidence * 100)}% confidence)
+    Evidence: ${insight.description}
+    Files: ${insight.files.join(', ')}
+    Examples: ${insight.evidence.slice(0, 2).join('; ')}`
+).join('\n')}
+
+**Project Metrics:**
+- Files Analyzed: ${codebaseContext.codeAnalysis.metrics.totalFiles}
+- Classes: ${codebaseContext.codeAnalysis.metrics.totalClasses}
+- Functions: ${codebaseContext.codeAnalysis.metrics.totalFunctions}
+- Interfaces: ${codebaseContext.codeAnalysis.metrics.totalInterfaces}
+- Design Patterns: ${codebaseContext.codeAnalysis.metrics.designPatterns}
+- Complexity Score: ${codebaseContext.codeAnalysis.metrics.complexityScore}/10
+
+**Code Structure Analysis:**
+${codebaseContext.structure}
+
+**Specific Code Examples:**
+${codebaseContext.codeAnalysis.patterns.filter(p => p.type === 'class' || p.type === 'function').slice(0, 5).map(pattern => 
+  `- ${pattern.type}: ${pattern.name} in ${pattern.file}:${pattern.lineNumber}
+    ${pattern.description}`
+).join('\n')}
+
+## Key Configuration Files:
+${codebaseContext.keyFiles}
+
 ## User Question:
 "${question}"
 
-Please provide a helpful, accurate answer based on the codebase analysis above. If you need to reference specific files, mention the file paths. Be concise but thorough.`;
+Based on the comprehensive analysis above, provide a detailed, accurate answer that:
+1. References specific files, line numbers, and code examples from the analysis
+2. Explains architectural decisions with evidence from the detected patterns
+3. Provides implementation details and trade-offs where relevant
+4. Uses concrete examples from this specific codebase (not generic advice)
+5. Includes confidence levels and justifications for your conclusions
+
+Answer with technical depth and specific evidence from the codebase analysis.`;
 
     console.log('💭 Thinking...\n');
     const response = await generateResponse(prompt);
@@ -45,8 +76,10 @@ Please provide a helpful, accurate answer based on the codebase analysis above. 
 async function getCodebaseContext() {
   const projectRoot = process.cwd();
   
-  // Get project structure
-  const structure = await getProjectStructure();
+  // Advanced code analysis
+  console.log('🔍 Performing deep code analysis...');
+  const analyzer = new CodeAnalyzer(projectRoot);
+  const analysis = await analyzer.analyzeProject();
   
   // Get key configuration files
   const keyFiles = await getKeyFilesContent();
@@ -55,24 +88,13 @@ async function getCodebaseContext() {
   const projectInfo = getProjectInfo();
   
   return {
-    structure,
+    structure: analysis.structure,
     keyFiles,
-    projectInfo
+    projectInfo,
+    codeAnalysis: analysis
   };
 }
 
-async function getProjectStructure(): Promise<string> {
-  try {
-    const files = await glob('**/*.{ts,js,json,md}', {
-      ignore: ['node_modules/**', 'dist/**', '.git/**', '**/*.min.js'],
-      cwd: process.cwd()
-    });
-    
-    return files.slice(0, 20).join('\n'); // Limit to first 20 files
-  } catch (error) {
-    return 'Unable to read project structure';
-  }
-}
 
 async function getKeyFilesContent(): Promise<string> {
   const keyFiles = ['package.json', 'README.md', 'claude.md', 'tsconfig.json'];
