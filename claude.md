@@ -78,6 +78,63 @@ This will generate architectural suggestions and ensure the project follows best
 - Task planning and tracking
 - Error handling and user feedback
 
+## 🚀 Batch Code Operations with Claude-Prompter
+
+Leverage batch processing for large-scale code analysis and generation:
+
+### Code Generation Workflows
+```bash
+# Batch generate tests for multiple components
+claude-prompter batch -f test-generation.json --parallel 3
+
+# Code review entire feature branches
+claude-prompter batch -f code-review.json --max-cost 8.00
+```
+
+### Recommended Code Batch Prompts
+
+Create files like `code-tasks.json`:
+```json
+[
+  {
+    "message": "Generate comprehensive unit tests for this component: [COMPONENT_CODE]",
+    "systemPrompt": "You are a senior developer expert in Jest testing and TDD practices."
+  },
+  {
+    "message": "Review this code for bugs, performance issues, and best practices: [CODE_BLOCK]",
+    "systemPrompt": "You are a code reviewer with 10+ years experience in TypeScript and Node.js."
+  },
+  {
+    "message": "Refactor this function for better maintainability and performance: [FUNCTION_CODE]",
+    "systemPrompt": "You are a software architect specializing in clean code and optimization."
+  },
+  {
+    "message": "Generate TypeScript interfaces and types for this API: [API_SPEC]",
+    "systemPrompt": "You are a TypeScript expert focused on type safety and API design."
+  }
+]
+```
+
+### Development Efficiency Tips
+
+- Use templates for repetitive code tasks
+- Monitor costs with `claude-prompter usage --month`
+- Process related files together to maintain context
+- Batch similar operations for consistency
+
+### CodeAgent Integration Examples
+
+```bash
+# Generate tests for all commands
+claude-prompter batch -f codeagent-tests.json
+
+# Review AI integration patterns
+claude-prompter prompt -m "Review the llm/router.ts implementation for best practices" --send
+
+# Optimize CLI user experience
+claude-prompter prompt -m "Suggest UX improvements for interactive commands" --send
+```
+
 
 ## License
 
