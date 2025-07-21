@@ -34,6 +34,25 @@ npx tsx cli.ts <command> [...args]
 - Requires [Ollama](https://ollama.com/) and DeepSeek-Coder 6.7B model
 - Node.js 18+ or Bun
 
+## Prompting with claude-prompter
+
+To streamline documentation updates and command specifications, we use the global `claude-prompter` CLI tool to generate and append markdown sections. For example:
+
+```bash
+claude-prompter prompt \
+  -m "Fill in the Application Architecture, Codex Logic, and Claude Logic sections for claude.md..." \
+  --send >> claude.md
+```
+
+You can customize prompts using:
+- `-m, --message <message>`: the main prompt text
+- `-c, --context <context>`: additional context to include
+- `-s, --system <system>`: system prompt (defaults to Claude assistant)
+- `--send`: execute the prompt against the AI model
+- `--show-prompt`: display the generated prompt without sending
+- other flags (`-t/--temperature`, `--max-tokens`) for LLM settings
+
+
 ## License
 
 MIT License
