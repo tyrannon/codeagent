@@ -52,6 +52,32 @@ You can customize prompts using:
 - `--show-prompt`: display the generated prompt without sending
 - other flags (`-t/--temperature`, `--max-tokens`) for LLM settings
 
+### Architecture Analysis with claude-prompter Planning
+
+Use the claude-prompter tool to analyze this project's architecture and ensure proper implementation. The tool is installed at `/Users/kaiyakramer/claude-prompter-standalone/` and can be used via:
+
+```bash
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest -t "TOPIC" --code -l LANGUAGE --complexity LEVEL --task-type TYPE --claude-analysis
+```
+
+Parameters:
+- **TOPIC**: What we're working on (be specific)
+- **LANGUAGE**: typescript, python, react, etc.
+- **LEVEL**: simple, moderate, complex
+- **TYPE**: api-integration, ui-component, cli-tool, backend-service, etc.
+
+Example for analyzing this codeagent project:
+```bash
+/Users/kaiyakramer/claude-prompter-standalone/use-from-anywhere.sh suggest -t "Claude Code-style terminal assistant architecture with DeepSeek-Coder" --code -l typescript --complexity complex --task-type cli-tool --claude-analysis
+```
+
+This will generate architectural suggestions and ensure the project follows best practices for:
+- CLI command structure
+- AI model integration
+- File system operations
+- Task planning and tracking
+- Error handling and user feedback
+
 
 ## License
 

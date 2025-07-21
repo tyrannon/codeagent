@@ -1,0 +1,23 @@
+{
+  "name": "codeagent",
+  "version": "0.1.0",
+  "description": "A local Claude Code-style terminal assistant for your codebase",
+  "main": "cli.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "tsx cli.ts"
+  },
+  "dependencies": {
+    "@types/node": "^24.0.15",
+    "axios": "^1.10.0",
+    "commander": "^14.0.0",
+    "fs-extra": "^11.3.0",
+    "glob": "^11.0.0",
+    "yargs": "^18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "tsx": "^4.0.0"
+  }
+}
