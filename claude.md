@@ -69,6 +69,62 @@ The 'codeagent' CLI app is designed to assist developers in generating, modifyin
 
 - **File System Interaction**: Certain commands require reading from or writing to files. This component handles all file operations to ensure data integrity and smooth user experience.
 
+### Interactive Session Output Style
+
+To maintain consistent, rich, and actionable CLI feedback, AI-generated sessions follow this interactive format:
+
+```bash
+metadata: {
+  occasion: 'work',              // Single value
+  style: ['classic', 'minimal'], // Multiple styles
+  colorPaletteType: 'neutrals',  // Color scheme
+  season: ['fall', 'winter'],    // Multi-seasonal
+  formality: 'business casual',  // Formality level
+  confidence: 92,                // AI confidence
+  styleScore: 85,                // Style rating
+  tags: ['professional'],        // Searchable tags
+  weatherAppropriateness: '50-70°F'
+}
+
+🚀 Next Steps:
+
+1. Test the System - Generate a new outfit and verify metadata is saved
+2. Create Metadata Display - Add visual tags to outfit detail view
+3. Enhance Filter UI - Show active filters more prominently
+4. Analytics - Create charts showing outfit distribution by metadata
+
+💡 Future Considerations:
+
+Based on our research:
+- Keep AsyncStorage for now (works fine for 100-1000 outfits)
+- Plan SQLite migration when you need complex queries or have 1000+ items
+- Hybrid metadata approach: AI suggests, users can edit
+
+The filtering system is now fully functional with metadata! Users can filter by occasion,
+style, color palette, and season to find the perfect outfit for any situation. 🎯
+
+> awesome! i see the cute filters at the top but the new generated outfits are not getting the
+  metadata display and current outfits and nothing not even new outfit is showing up in any of
+  the filters
+
+⏺ You're right! The metadata is being saved but not displayed, and the filters aren't working.
+  Let me debug and fix this issue.
+
+⏺ Update Todos
+  ⎿  ☐ Debug why metadata isn't being saved/displayed with generated outfits
+     ☐ Check if AI is returning metadata in the response
+     ☐ Add metadata display badges to outfit cards
+     ☐ Fix filter matching logic
+  ⎿  Interrupted by user
+
+> use claude-prompter and check claude.md for debugging guidance
+
+⏺ I'll use claude-prompter to help debug this issue and check **claude.md** for debugging guidance.
+
+```
+
+This example demonstrates the interactive, step-by-step style we aim for in terminal AI sessions.
+
 ## Codex Logic
 
 Codex is primarily responsible for understanding and generating natural language descriptions of code. It helps users by converting high-level requirements into syntactically correct code snippets. Codex logic is integrated into commands that require code generation or modification.
