@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
 import { CodeAnalyzer } from '../utils/codeAnalyzer';
+import { TemplateFactory } from '../utils/responseTemplates';
 
 export async function askCommand(question: string) {
   console.log('🤖 Analyzing your codebase to answer your question...\n');
@@ -59,10 +60,14 @@ Based on the comprehensive analysis above, provide a detailed, accurate answer t
 Answer with technical depth and specific evidence from the codebase analysis.`;
 
     console.log('💭 Thinking...\n');
-    const response = await generateResponse(prompt);
+    const baseResponse = await generateResponse(prompt);
     
-    console.log('📝 **Answer:**\n');
-    console.log(response);
+    // Apply enhanced response template
+    const template = TemplateFactory.getTemplate(question);
+    const enhancedResponse = template.generateResponse(question, codebaseContext.codeAnalysis, baseResponse);
+    
+    console.log('📝 **Enhanced Analysis:**\n');
+    console.log(enhancedResponse);
     console.log('\n---');
     console.log('💡 *Tip: For more specific help, try asking about particular files or functions!*');
     

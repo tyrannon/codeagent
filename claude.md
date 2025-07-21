@@ -135,6 +135,76 @@ claude-prompter prompt -m "Review the llm/router.ts implementation for best prac
 claude-prompter prompt -m "Suggest UX improvements for interactive commands" --send
 ```
 
+## 🚀 CodeAgent Optimal Usage Strategy
+
+### When to Use CodeAgent vs Claude Code
+
+**🎯 CodeAgent Excellence (Safe & Optimal):**
+- **Codebase Exploration**: Leverage advanced pattern detection for large codebases
+- **Refactoring**: Safe code improvements with backup creation and confidence scoring
+- **Code Review**: Pattern-based issue identification with file-specific analysis
+- **Documentation**: Automated README and comment generation
+- **Unit Test Generation**: Safe test creation with rollback options
+
+**⚡ Claude Code for Complex Logic:**
+- High-level architecture decisions requiring broad context
+- Complex business logic with external integrations
+- Security-critical implementations needing extensive validation
+- Collaborative development requiring shared context
+
+### Risk Mitigation Strategies
+
+**🛡️ Safety First:**
+```bash
+# Always use backups before major changes
+npx tsx cli.ts edit critical-file.ts  # Creates automatic backup
+
+# Check confidence scores in responses
+npx tsx cli.ts ask "What's the confidence level for this pattern?"
+
+# Use planning mode for complex changes
+npx tsx cli.ts plan  # Structured approach with AI guidance
+```
+
+### Productivity Optimization Workflows
+
+**🔥 Example 1: Safe Refactoring Workflow**
+```bash
+npx tsx cli.ts plan                    # 1. Strategic planning
+npx tsx cli.ts ask "Refactoring opportunities in src/?"  # 2. Analysis
+npx tsx cli.ts edit src/component.ts   # 3. Safe editing with backups
+npm test                               # 4. Automated validation
+```
+
+**⚡ Example 2: New Feature Development**
+```bash
+npx tsx cli.ts plan                    # 1. Feature requirements
+npx tsx cli.ts write src/newFeature.ts # 2. Initial implementation  
+npx tsx cli.ts edit src/newFeature.ts  # 3. Refinement
+npx tsx cli.ts move src/temp.ts src/final.ts  # 4. Organization
+npm test && npm run lint               # 5. Quality assurance
+```
+
+**🐛 Example 3: Bug Investigation & Fix**
+```bash
+npx tsx cli.ts ask "What could cause error X in component Y?"  # 1. Analysis
+npx tsx cli.ts plan                    # 2. Fix strategy
+npx tsx cli.ts edit buggy-file.ts      # 3. Safe implementation
+npm test -- --testNamePattern="bug"   # 4. Targeted testing
+```
+
+### Integration with Claude-Prompter
+
+```bash
+# Strategic planning with claude-prompter
+claude-prompter prompt -m "Plan optimal architecture for feature X" --send
+
+# Then implement with CodeAgent locally
+npx tsx cli.ts plan    # Apply claude-prompter insights
+npx tsx cli.ts write   # Safe local implementation
+npx tsx cli.ts edit    # Iterative refinement
+```
+
 
 ## License
 
