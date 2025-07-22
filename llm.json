@@ -2,5 +2,5 @@
   "model": "deepseek-coder:6.7b",
   "ollama_url": "http://localhost:11434",
   "temperature": 0.2,
-  "max_tokens": 2048
+  "max_tokens": 1024
 } 

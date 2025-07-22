@@ -212,15 +212,40 @@ MIT License
 
 ## Application Architecture
 
-The 'codeagent' CLI app is designed to assist developers in generating, modifying, and understanding code through a set of AI-powered commands. The architecture is built around a command-line interface that interacts with Claude, an AI model, to provide dynamic and context-aware responses. The app is structured into several key components:
+The 'codeagent' CLI app is designed to assist developers in generating, modifying, and understanding code through a set of AI-powered commands. The architecture supports both **command-based interactions** (plan, edit, write, move, ask) and **conversational Claude Code-style prompting**.
 
-- **Command Interface**: The user interacts with the application through a series of CLI commands. Each command serves a specific purpose and leverages AI to perform tasks.
+### Core Components
 
-- **AI Processing Unit**: This component is responsible for sending user inputs to the AI model and processing the model's outputs. It ensures that the communication between the CLI and the AI is seamless and efficient.
+- **Command Interface**: Traditional CLI commands for specific tasks
+- **Conversational Interface**: Natural language processing for Claude Code-style interactions
+- **Intent Recognition System**: Maps natural language to appropriate CLI commands
+- **Context Management**: Maintains conversation state across multi-turn interactions
+- **AI Processing Unit**: Integrates with DeepSeek-Coder via Ollama for local LLM processing
+- **File System Awareness**: Codebase understanding and manipulation capabilities
 
-- **Response Generator**: Once the AI produces a response, this component formats and presents the output in a user-friendly manner.
+### Conversational Architecture (Claude Code-Style)
 
-- **File System Interaction**: Certain commands require reading from or writing to files. This component handles all file operations to ensure data integrity and smooth user experience.
+The conversational interface transforms command-based interactions into natural language prompts:
+
+1. **Natural Language Understanding (NLU)**
+   - Intent recognition for mapping prompts to CLI commands
+   - Entity extraction for parameters and file references
+   - Context-aware command interpretation
+
+2. **Intent-Command Mapping**
+   - "help me refactor this component" → `edit` command
+   - "explain this error message" → `ask` command  
+   - "create a new feature" → `write` + `plan` commands
+
+3. **Context Management**
+   - Conversation history tracking
+   - File state awareness
+   - Multi-turn dialogue support
+
+4. **LLM Integration Pipeline**
+   - Local DeepSeek-Coder processing via Ollama
+   - Prompt engineering for codebase context
+   - Response formatting for terminal display
 
 ### Interactive Session Output Style
 
@@ -334,5 +359,38 @@ Claude logic focuses on providing intelligent, context-aware responses that assi
 - **Input**: Specific questions or code snippets for clarification.
 - **Output**: Detailed explanations or answers to the queries.
 - **AI Usage**: Claude uses its natural language understanding to parse questions and provides insightful, contextual explanations to enhance user comprehension.
+
+#### `improve`
+
+- **Purpose**: To enable self-improvement through automated code analysis and suggestion generation.
+- **Input**: Natural language requests for self-analysis or improvement options.
+- **Output**: Analysis results, improvement suggestions, and applied changes.
+- **AI Usage**: CodeAgent analyzes its own codebase, reads this claude.md file for instructions, and generates targeted improvements using the local LLM.
+
+## Self-Improvement Configuration
+
+CodeAgent supports self-improvement capabilities through the `improve` command and natural language requests in chat mode.
+
+**Configuration:**
+- Self-improvement: enabled
+- Analysis interval: 24 hours  
+- Auto-apply patches: false (safety first)
+- Requires approval: true
+- Improvement areas: performance, code quality, user experience, documentation
+
+**Usage:**
+```bash
+npx tsx cli.ts improve           # Full self-analysis and suggestions
+npx tsx cli.ts improve --auto    # Auto-apply low-risk improvements
+npx tsx cli.ts chat "improve yourself"  # Natural language interface
+```
+
+**Safety Features:**
+- All high-risk changes require manual approval
+- Automatic backup creation before applying patches
+- Rollback capability for failed improvements
+- Confidence scoring for all suggestions
+
+This enables CodeAgent to continuously learn from its own codebase and apply best practices based on the instructions in this file.
 
 This markdown documentation provides a comprehensive overview of the `codeagent` CLI app, detailing its architecture, the logic behind its AI components, and specific information on how each CLI command functions.

@@ -51,7 +51,7 @@ export async function generateResponse(prompt: string): Promise<string> {
         headers: {
           'Content-Type': 'application/json'
         },
-        timeout: 30000 // 30 second timeout
+        timeout: 120000 // 2 minute timeout for complex questions
       }
     );
 
@@ -72,4 +72,7 @@ export async function generateResponse(prompt: string): Promise<string> {
     }
     throw new Error(`Unexpected error: ${error}`);
   }
-} 
+}
+
+// Alias for compatibility with feedbackLoop
+export const queryAI = generateResponse; 

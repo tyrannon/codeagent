@@ -330,3 +330,156 @@ export interface ProjectMetrics {
   designPatterns: number;
   complexityScore: number;
 }
+
+export interface AnalysisResult {
+  fileName: string;
+  patterns: CodePattern[];
+  metrics: {
+    complexity: number;
+    maintainability: number;
+  };
+  issues: CodeIssue[];
+}
+
+export interface CodeIssue {
+  type: 'warning' | 'error' | 'suggestion';
+  message: string;
+  line: number;
+  severity: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Analyze a single code file and return detailed analysis
+ */
+export async function analyzeCode(content: string, fileName: string): Promise<AnalysisResult> {
+  const lines = content.split('\n');
+  const patterns: CodePattern[] = [];
+  const issues: CodeIssue[] = [];
+
+  // Analyze patterns
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+
+    // Detect functions
+    const functionMatch = trimmedLine.match(/(?:export\s+)?(?:async\s+)?function\s+(\w+)/);
+    if (functionMatch) {
+      patterns.push({
+        type: 'function',
+        name: functionMatch[1],
+        file: fileName,
+        lineNumber: i + 1,
+        code: line.trim()
+      });
+    }
+
+    // Detect classes
+    const classMatch = trimmedLine.match(/(?:export\s+)?class\s+(\w+)/);
+    if (classMatch) {
+      patterns.push({
+        type: 'class',
+        name: classMatch[1],
+        file: fileName,
+        lineNumber: i + 1,
+        code: line.trim()
+      });
+    }
+
+    // Detect interfaces
+    const interfaceMatch = trimmedLine.match(/(?:export\s+)?interface\s+(\w+)/);
+    if (interfaceMatch) {
+      patterns.push({
+        type: 'interface',
+        name: interfaceMatch[1],
+        file: fileName,
+        lineNumber: i + 1,
+        code: line.trim()
+      });
+    }
+
+    // Detect imports
+    const importMatch = trimmedLine.match(/import.*from\s+['"](.*)['"]/);
+    if (importMatch) {
+      patterns.push({
+        type: 'import',
+        name: importMatch[1],
+        file: fileName,
+        lineNumber: i + 1,
+        code: line.trim()
+      });
+    }
+
+    // Code quality checks
+    if (line.length > 120) {
+      issues.push({
+        type: 'warning',
+        message: 'Line too long (>120 characters)',
+        line: i + 1,
+        severity: 'low'
+      });
+    }
+
+    if (trimmedLine.includes('console.log') && !fileName.includes('test')) {
+      issues.push({
+        type: 'suggestion',
+        message: 'Consider using proper logging instead of console.log',
+        line: i + 1,
+        severity: 'low'
+      });
+    }
+
+    if (trimmedLine.includes('any') && trimmedLine.includes(':')) {
+      issues.push({
+        type: 'suggestion',
+        message: 'Consider using more specific types instead of "any"',
+        line: i + 1,
+        severity: 'medium'
+      });
+    }
+  }
+
+  // Calculate complexity (simple heuristic)
+  const complexity = calculateCyclomaticComplexity(content);
+  const maintainability = Math.max(0, 100 - (complexity * 5) - (issues.length * 2));
+
+  return {
+    fileName,
+    patterns,
+    metrics: {
+      complexity,
+      maintainability
+    },
+    issues
+  };
+}
+
+/**
+ * Calculate cyclomatic complexity for a piece of code
+ */
+function calculateCyclomaticComplexity(content: string): number {
+  const complexityKeywords = [
+    'if', 'else', 'while', 'for', 'switch', 'case', 'catch', 'try',
+    '&&', '||', '?', 'forEach', 'map', 'filter', 'reduce'
+  ];
+
+  let complexity = 1; // Base complexity
+
+  for (const keyword of complexityKeywords) {
+    // Escape special regex characters and ensure proper word boundaries
+    const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(keyword === '?' || keyword === '&&' || keyword === '||' ? 
+      `\\${escapedKeyword}` : `\\b${escapedKeyword}\\b`, 'g');
+    const matches = content.match(regex);
+    if (matches) {
+      complexity += matches.length;
+    }
+  }
+
+  // Count function definitions (each adds to complexity)
+  const functionMatches = content.match(/function\s+\w+|=>\s*{|=>\s*\w+/g);
+  if (functionMatches) {
+    complexity += functionMatches.length - 1; // Subtract 1 to not double-count main function
+  }
+
+  return complexity;
+}

@@ -5,9 +5,10 @@ import path from 'path';
 import { glob } from 'glob';
 import { CodeAnalyzer } from '../utils/codeAnalyzer';
 import { TemplateFactory } from '../utils/responseTemplates';
+import { TerminalFormatter } from '../utils/terminalFormatter';
 
 export async function askCommand(question: string) {
-  console.log('🤖 Analyzing your codebase to answer your question...\n');
+  console.log(TerminalFormatter.info('🤖 Analyzing your codebase to answer your question...\n'));
 
   try {
     // Get codebase context
@@ -59,22 +60,24 @@ Based on the comprehensive analysis above, provide a detailed, accurate answer t
 
 Answer with technical depth and specific evidence from the codebase analysis.`;
 
-    console.log('💭 Thinking...\n');
+    console.log(TerminalFormatter.info('🧠 DeepSeek-Coder is thinking deeply...\n'));
     const baseResponse = await generateResponse(prompt);
     
     // Apply enhanced response template
     const template = TemplateFactory.getTemplate(question);
     const enhancedResponse = template.generateResponse(question, codebaseContext.codeAnalysis, baseResponse);
     
-    console.log('📝 **Enhanced Analysis:**\n');
-    console.log(enhancedResponse);
-    console.log('\n---');
-    console.log('💡 *Tip: For more specific help, try asking about particular files or functions!*');
+    // Format the response with beautiful colors and emojis
+    const formattedResponse = TerminalFormatter.formatResponse(enhancedResponse);
+    
+    console.log(TerminalFormatter.createSection('🎯 AI Analysis Results', formattedResponse, '🔍'));
+    console.log('\n' + TerminalFormatter.colors.brightCyan + '═'.repeat(70) + TerminalFormatter.colors.reset);
+    console.log(TerminalFormatter.emphasize('Tip: For more specific help, try asking about particular files or functions!'));
     
   } catch (error) {
-    console.error('❌ Error:', error.message);
-    console.log('💡 Make sure Ollama is running: `ollama serve`');
-    console.log('💡 And DeepSeek-Coder is installed: `ollama pull deepseek-coder:6.7b`');
+    console.log(TerminalFormatter.error(`Error: ${error.message}`));
+    console.log(TerminalFormatter.warning('Make sure Ollama is running: `ollama serve`'));
+    console.log(TerminalFormatter.warning('And DeepSeek-Coder is installed: `ollama pull deepseek-coder:6.7b`'));
   }
 }
 

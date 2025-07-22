@@ -48,4 +48,24 @@ program
     await askCommand(question.join(' '));
   });
 
+program
+  .command('chat [prompt...]')
+  .description('Interactive Claude Code-style conversational interface')
+  .action(async (prompt) => {
+    const { chatCommand } = await import('./commands/chat');
+    await chatCommand(prompt ? prompt.join(' ') : undefined);
+  });
+
+program
+  .command('improve')
+  .description('Run self-improvement analysis and apply suggested changes')
+  .option('-a, --analyze', 'Run code analysis (default: true)')
+  .option('-s, --suggest', 'Generate improvement suggestions (default: true)')
+  .option('--apply <id>', 'Apply a specific suggestion by ID')
+  .option('--auto', 'Automatically apply low-risk improvements')
+  .action(async (options) => {
+    const { improveCommand } = await import('./commands/improve');
+    await improveCommand(options);
+  });
+
 program.parse(process.argv); 
