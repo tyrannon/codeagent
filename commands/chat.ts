@@ -2,14 +2,23 @@ import { readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import * as readline from 'readline';
+import { SimpleBufferedReadline } from '../utils/simpleBufferedReadline';
 import { recognizeIntent } from '../utils/intentRecognizer';
+import { recognizeCompoundIntent, CompoundIntent } from '../utils/compoundIntentRecognizer';
+import { executeCompoundIntent } from '../utils/compoundOperationExecutor';
 import { ContextManager } from '../utils/contextManager';
 import { getFileStructure, analyzeCodebase } from '../utils/fileSystemManager';
-import { TerminalUI } from '../utils/terminalUI';
+import { ImprovedTerminalUI } from '../utils/improvedTerminalUI';
+import { MinimalUI } from '../utils/minimalUI';
+import { ClaudeStyleOutput } from '../utils/claudeStyleOutput';
+import { ConversationMemory } from '../utils/conversationMemory';
 import { TerminalFormatter } from '../utils/terminalFormatter';
+import { CleanFormatter, OutputSection } from '../utils/cleanFormatter';
+import { RichTerminalFormatter } from '../utils/richTerminalFormatter';
+import { LeetCodeManager } from '../leetcode/leetcodeManager';
 import { claudeReader } from '../utils/claudeReader';
 import { feedbackLoop } from '../utils/feedbackLoop';
-import { askCommand } from './ask';
+import { askCommand } from './simpleAsk';
 import { planCommand } from './plan';
 import { editCommand } from './edit';
 import { writeCommand } from './write';
@@ -30,6 +39,12 @@ const CHAT_HISTORY_FILE = '.codeagent-chat-history.json';
 
 export async function chatCommand(initialPrompt?: string): Promise<void> {
   const contextManager = new ContextManager();
+  const leetcodeManager = new LeetCodeManager();
+  const conversationMemory = new ConversationMemory();
+  
+  // Start conversation session
+  conversationMemory.startSession();
+  
   let session: ChatSession = {
     id: Date.now().toString(),
     messages: [],
@@ -38,7 +53,7 @@ export async function chatCommand(initialPrompt?: string): Promise<void> {
 
   // Handle initial prompt if provided (non-interactive mode)
   if (initialPrompt) {
-    TerminalUI.drawBox([
+    ImprovedTerminalUI.drawBox([
       '🤖 CodeAgent Interactive Chat (Claude Code-style)',
       '',
       'Type "exit" to quit, "clear" to reset context, "help" for commands',
@@ -50,13 +65,13 @@ export async function chatCommand(initialPrompt?: string): Promise<void> {
     ], 'Welcome to CodeAgent');
     console.log(); // Add newline for spacing
     
-    await processUserInput(initialPrompt, session, contextManager);
+    await processUserInput(initialPrompt, session, contextManager, leetcodeManager, conversationMemory);
     await saveChatHistory(session);
     return;
   }
 
   // Interactive mode
-  TerminalUI.drawBox([
+  ImprovedTerminalUI.drawBox([
     '🤖 CodeAgent Interactive Chat (Claude Code-style)',
     '',
     'Type "exit" to quit, "clear" to reset context, "help" for commands',
@@ -75,12 +90,7 @@ export async function chatCommand(initialPrompt?: string): Promise<void> {
     console.log('⚡ Attempting to continue anyway...\n');
   }
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: '> ',
-    terminal: true  // Force terminal mode
-  });
+  const rl = SimpleBufferedReadline.createInterface();
 
   // Load existing chat history after readline setup
   await loadChatHistory(session);
@@ -100,7 +110,8 @@ export async function chatCommand(initialPrompt?: string): Promise<void> {
     if (userInput === 'clear') {
       session.messages = [];
       contextManager.clearContext();
-      console.log('🧹 Context cleared\n');
+      conversationMemory.clearSession();
+      console.log('Context and conversation memory cleared\n');
       rl.prompt();
       return;
     }
@@ -116,7 +127,7 @@ export async function chatCommand(initialPrompt?: string): Promise<void> {
       return;
     }
 
-    await processUserInput(userInput, session, contextManager);
+    await processUserInput(userInput, session, contextManager, leetcodeManager, conversationMemory);
     rl.prompt();
   });
 
@@ -129,7 +140,9 @@ export async function chatCommand(initialPrompt?: string): Promise<void> {
 async function processUserInput(
   input: string, 
   session: ChatSession, 
-  contextManager: ContextManager
+  contextManager: ContextManager,
+  leetcodeManager: LeetCodeManager,
+  conversationMemory: ConversationMemory
 ): Promise<void> {
   // Add user message to session
   session.messages.push({
@@ -138,9 +151,33 @@ async function processUserInput(
     timestamp: new Date()
   });
 
-  const ui = new TerminalUI();
+  const ui = new MinimalUI();
 
   try {
+    // Classify topic and resolve references
+    const topic = conversationMemory.classifyTopic(input);
+    const resolvedInput = conversationMemory.resolveReferences(input, topic);
+    const isFollowUp = conversationMemory.isFollowUp(input);
+    
+    // Check for LeetCode problems first (but only if not a follow-up)
+    if (!isFollowUp) {
+      const leetcodeResponse = leetcodeManager.handleInput(resolvedInput);
+      if (leetcodeResponse) {
+        // Add to conversation memory
+        conversationMemory.addExchange(input, leetcodeResponse, 'leetcode');
+        
+        // Add assistant response to session
+        session.messages.push({
+          role: 'assistant',
+          content: leetcodeResponse,
+          timestamp: new Date()
+        });
+
+        console.log(leetcodeResponse);
+        return;
+      }
+    }
+
     // Check for self-improvement requests
     const selfImprovementKeywords = ['improve yourself', 'self-improve', 'analyze yourself', 'improve your code', 'examine your own code'];
     const isSelfImprovement = selfImprovementKeywords.some(keyword => 
@@ -170,44 +207,58 @@ async function processUserInput(
       return;
     }
 
-    // Recognize intent from natural language
-    const intent = recognizeIntent(input);
-    contextManager.updateContext(intent, input);
+    // Try compound intent recognition first
+    const compoundIntent = recognizeCompoundIntent(input);
+    contextManager.updateContext(compoundIntent.isCompound ? 'compound' : compoundIntent.operations[0]?.intent || 'ask', input);
 
-    // Start loading animation
-    const estimatedTokens = Math.floor(input.length * 1.2 + Math.random() * 2000);
-    ui.startLoading(undefined, estimatedTokens);
+    // Start minimal loading
+    ui.startLoading('Processing');
 
-    // Simulate realistic processing time for local CLI (reduce delay)
-    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+    // Simulate realistic processing time for local CLI
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     ui.stopLoading();
 
-    console.log(`⚡ Processing: "${input}"`);
-    console.log(`🎯 Detected intent: ${intent}`);
-
     let response: string = '';
 
-    // Route to appropriate command based on intent
-    switch (intent) {
-      case 'plan':
-        response = await handlePlanIntent(input);
-        break;
-      case 'edit':
-        response = await handleEditIntent(input);
-        break;
-      case 'write':
-        response = await handleWriteIntent(input);
-        break;
-      case 'move':
-        response = await handleMoveIntent(input);
-        break;
-      case 'ask':
-      default:
-        response = await handleAskIntent(input);
-        break;
+    if (compoundIntent.isCompound) {
+      // Handle compound operations
+      console.log(RichTerminalFormatter.info(`Intent: compound (${compoundIntent.operations.length} operations)`));
+      response = await handleCompoundIntent(compoundIntent);
+    } else if (compoundIntent.operations.length > 0) {
+      // Handle single operation via compound system (for consistency)
+      const singleIntent = compoundIntent.operations[0].intent;
+      console.log(RichTerminalFormatter.info(`Intent: ${singleIntent}`));
+      response = await handleCompoundIntent(compoundIntent);
+    } else {
+      // Fallback to legacy system for ask/general questions
+      const intent = recognizeIntent(input);
+      console.log(RichTerminalFormatter.info(`Intent: ${intent}`));
+      
+      switch (intent) {
+        case 'plan':
+          response = await handlePlanIntent(input);
+          break;
+        case 'edit':
+          response = await handleEditIntent(input);
+          break;
+        case 'write':
+          response = await handleWriteIntent(input);
+          break;
+        case 'move':
+          response = await handleMoveIntent(input);
+          break;
+        case 'ask':
+        default:
+          response = await handleAskIntent(input, conversationMemory);
+          break;
+      }
     }
 
+    // Add to conversation memory
+    const responseTopic = conversationMemory.classifyTopic(input);
+    conversationMemory.addExchange(input, response, responseTopic);
+    
     // Add assistant response to session
     session.messages.push({
       role: 'assistant', 
@@ -215,14 +266,12 @@ async function processUserInput(
       timestamp: new Date()
     });
 
-    // Display response with beautiful formatting
-    console.log(''); // Add spacing
-    console.log(TerminalFormatter.success(response));
-    console.log(''); // Add spacing
+    // The response is already richly formatted by the individual commands
+    // No need for additional "Summary" and "Details" sections
 
   } catch (error) {
     ui.stopLoading();
-    console.log(TerminalFormatter.error(`Error processing input: ${error}`));
+    console.log(CleanFormatter.error(`Error processing input: ${error}`));
     
     session.messages.push({
       role: 'assistant',
@@ -232,20 +281,47 @@ async function processUserInput(
   }
 }
 
+async function handleCompoundIntent(compoundIntent: CompoundIntent): Promise<string> {
+  try {
+    const result = await executeCompoundIntent(compoundIntent);
+    
+    if (result.success) {
+      return `🎉 Compound operation completed successfully!\n\n${result.summary}\n\nAll requested operations have been executed as planned.`;
+    } else {
+      let response = `⚠️ Compound operation completed with some issues:\n\n${result.summary}`;
+      
+      if (result.failedOperations.length > 0) {
+        response += `\n\n❌ Failed Operations:\n`;
+        result.failedOperations.forEach(failure => {
+          response += `   • ${failure.operation.target}: ${failure.error}\n`;
+        });
+      }
+      
+      if (result.completedOperations.length > 0) {
+        response += `\n✅ However, ${result.completedOperations.length} operation(s) completed successfully!`;
+      }
+      
+      return response;
+    }
+  } catch (error) {
+    return `❌ Sorry, I encountered an error executing your compound request: ${error}`;
+  }
+}
+
 async function handlePlanIntent(input: string): Promise<string> {
   try {
     // Show planning animation
-    const planUI = new TerminalUI();
-    console.log('\n📋 Initiating strategic planning...');
-    planUI.startLoading('🎯 Analyzing requirements and designing roadmap...', 0);
+    const planUI = new ImprovedTerminalUI();
+    console.log('\n' + CleanFormatter.progress('Initiating strategic planning'));
+    planUI.startLoading('Analyzing requirements and designing roadmap', 0);
     
-    // Call the actual plan command
-    await planCommand();
+    // Call the plan command with the input as project description (non-interactive mode)
+    await planCommand(input);
     
     planUI.stopLoading();
-    return `📋 Planning complete! 🎉 I've created a strategic plan based on your request: "${input}"\n\n✨ Check the plan file for detailed implementation steps! 🚀`;
+    return `Planning complete! I've created a strategic plan based on your request: "${input}"\n\nCheck the plan file for detailed implementation steps`;
   } catch (error) {
-    return `❌ Sorry, I encountered an error while creating the plan: ${error} 📋`;
+    return `Sorry, I encountered an error while creating the plan: ${error}`;
   }
 }
 
@@ -264,47 +340,145 @@ async function handleEditIntent(input: string): Promise<string> {
   if (possibleFile && existsSync(possibleFile)) {
     try {
       // Show editing animation
-      const editUI = new TerminalUI();
-      console.log(`\n✏️ Preparing to edit ${possibleFile}...`);
-      editUI.startLoading('🎨 AI is analyzing and modifying your code...', 0);
+      const editUI = new ImprovedTerminalUI();
+      console.log(`\n${CleanFormatter.progress(`Preparing to edit ${possibleFile}`)}`);
+      editUI.startLoading('AI is analyzing and modifying your code', 0);
       
       // Call the actual edit command
       await editCommand(possibleFile);
       
       editUI.stopLoading();
-      return `✏️ Edit complete! 🎨 I've analyzed and processed edits for: ${possibleFile}\n\n✨ Check the output above for detailed changes! 🚀`;
+      return `Edit complete! I've analyzed and processed edits for: ${possibleFile}\n\nCheck the output above for detailed changes`;
     } catch (error) {
-      return `❌ Sorry, I encountered an error while editing ${possibleFile}: ${error} ✏️`;
+      return `Sorry, I encountered an error while editing ${possibleFile}: ${error}`;
     }
   } else {
-    return "✏️ I'd be happy to help edit a file! 😊 Please specify which file you'd like to modify. 📝\n\n💡 Pro tip: Include the file path in your request! 🎯\n\nExample: 'edit src/components/Button.tsx'";
+    return "I'd be happy to help edit a file! Please specify which file you'd like to modify.\n\nPro tip: Include the file path in your request\n\nExample: 'edit src/components/Button.tsx'";
   }
 }
 
-async function handleWriteIntent(input: string): Promise<string> {
-  // Try to extract file path from input
-  const words = input.split(/\s+/);
-  const possibleFile = words.find(word => 
-    word.includes('.') && (
-      word.endsWith('.ts') || 
-      word.endsWith('.js') || 
-      word.endsWith('.tsx') || 
-      word.endsWith('.jsx') ||
-      word.endsWith('.md') ||
-      word.endsWith('.json')
-    )
-  );
-
-  if (possibleFile) {
-    try {
-      // Call the actual write command
-      await writeCommand(possibleFile);
-      return `✍️ Write complete! 📝 I've created: ${possibleFile}\n\n🎨 Check the output above for the generated content! 🚀`;
-    } catch (error) {
-      return `❌ Sorry, I encountered an error while writing ${possibleFile}: ${error} ✍️`;
+function extractContentDescription(input: string): string {
+  // Extract descriptions like "with a song about happiness", "containing jokes", "with API documentation", etc.
+  const contentPatterns = [
+    // "with a song about happiness" - captures type and topic
+    /with\s+(?:a\s+)?(song|story|poem|joke|list|guide|tutorial|documentation|example|code|script|template)(?:\s+about\s+(.+?))?(?:\s+(?:in|for|to)|$)/i,
+    // "put a song about happytimes in there" - captures put pattern
+    /(?:put|add)\s+(?:a\s+)?(song|story|poem|joke|list|guide|tutorial|documentation|example|code|script|template)(?:\s+about\s+(.+?))?(?:\s+(?:in|there|inside)|$)/i,
+    // "containing funny jokes" - captures full description
+    /containing\s+(.+?)(?:\s+(?:in|for|to)|$)/i,
+    // "with API documentation" - captures without "a"
+    /with\s+(API\s+documentation|documentation|examples|jokes|stories|poems|guides|tutorials|code|scripts|templates)(?:\s+(?:about|for)\s+(.+?))?(?:\s+(?:in|for|to)|$)/i,
+    // "about adventure" - captures topic
+    /(?:write|create).*?(?:story|poem|song|guide).*?about\s+(.+?)(?:\s+(?:in|for|to)|$)/i
+  ];
+  
+  for (const pattern of contentPatterns) {
+    const match = input.match(pattern);
+    if (match) {
+      if (match[1] && match[2]) {
+        // "with a song about happiness" -> "with a song about happiness"
+        return `with a ${match[1]} about ${match[2].trim()}`;
+      } else if (match[1]) {
+        // Handle different types
+        const content = match[1].trim();
+        if (content.includes('documentation') || content.includes('API')) {
+          return `with ${content}`;
+        } else if (pattern.source.includes('containing')) {
+          return `containing ${content}`;
+        } else if (pattern.source.includes('about')) {
+          return `about ${content}`;
+        } else {
+          return `with ${content}`;
+        }
+      }
     }
-  } else {
-    return "✍️ I'd be happy to help create a file! 📝 Please specify the file path you'd like me to create. 🗂️\n\n💡 Example: 'write src/components/NewComponent.tsx' 🎯";
+  }
+  
+  return '';
+}
+
+async function handleWriteIntent(input: string): Promise<string> {
+  const { parseFileOperations, executeOperations, generateOperationSummary } = await import('../utils/intentParser');
+  
+  try {
+    // Parse natural language input for file/folder operations
+    const parseResult = parseFileOperations(input);
+    
+    if (parseResult.errors.length > 0) {
+      return `❌ I encountered some issues understanding your request:\n${parseResult.errors.join('\n')}\n\n💡 Try: "create a folder called testfolder and put a file called test.txt in it"`;
+    }
+    
+    if (parseResult.operations.length === 0) {
+      // Fallback to original logic for specific file extensions
+      const words = input.split(/\s+/);
+      const possibleFile = words.find(word => 
+        word.includes('.') && (
+          word.endsWith('.ts') || 
+          word.endsWith('.js') || 
+          word.endsWith('.tsx') || 
+          word.endsWith('.jsx') ||
+          word.endsWith('.md') ||
+          word.endsWith('.json')
+        )
+      );
+
+      if (possibleFile) {
+        await writeCommand(possibleFile);
+        return `✍️ Write complete! 📝 I've created: ${possibleFile}\n\n🎨 Check the output above for the generated content! 🚀`;
+      } else {
+        return "✍️ I'd be happy to help create files and folders! 📝\n\n💡 Examples:\n• 'create a folder called testfolder and put a file called test.txt in it'\n• 'make a directory called utils'\n• 'write src/components/Button.tsx' 🎯";
+      }
+    }
+    
+    // Execute folder creation operations
+    const executionResult = await executeOperations(parseResult.operations);
+    
+    // Check if this is a folder-only operation
+    const folderOperations = parseResult.operations.filter(op => op.type === 'folder');
+    const fileOperations = parseResult.operations.filter(op => op.type === 'file');
+    
+    if (fileOperations.length === 0 && folderOperations.length > 0) {
+      // Folder-only operation - just show success message
+      let response = `✅ Folder creation complete!\n\n${generateOperationSummary(parseResult.operations)}`;
+      
+      if (executionResult.failed.length > 0) {
+        response += `\n⚠️ Some operations failed:\n${executionResult.failed.map(f => `❌ ${f.operation.path}: ${f.error}`).join('\n')}`;
+      }
+      
+      return response + '\n\n📁 Your folders are ready to use!';
+    }
+    
+    // Create files using the writeCommand for each file operation
+    for (const operation of fileOperations) {
+      try {
+        // Extract content description from the input (e.g., "with a song about happiness")
+        const contentDescription = extractContentDescription(input);
+        
+        // Generate a better description based on the extracted content
+        const fileDescription = contentDescription 
+          ? `Create a ${operation.path.endsWith('.txt') ? 'text file' : 'file'} ${contentDescription}. This file was created via CodeAgent's natural language interface.`
+          : `Create a ${operation.path.endsWith('.txt') ? 'text file' : 'file'} for ${input}. This is a demonstration file created via CodeAgent's natural language interface.`;
+        
+        await writeCommand(operation.path, fileDescription);
+      } catch (error) {
+        executionResult.failed.push({ 
+          operation, 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+      }
+    }
+    
+    // Generate summary response
+    let response = `✅ File/Folder creation complete!\n\n${generateOperationSummary(parseResult.operations)}`;
+    
+    if (executionResult.failed.length > 0) {
+      response += `\n⚠️ Some operations failed:\n${executionResult.failed.map(f => `❌ ${f.operation.path}: ${f.error}`).join('\n')}`;
+    }
+    
+    return response + '\n\n🎨 Check the output above for any generated file content! 🚀';
+    
+  } catch (error) {
+    return `❌ Sorry, I encountered an error processing your request: ${error} ✍️\n\n💡 Try: "create a folder called testfolder and put a file called test.txt in it"`;
   }
 }
 
@@ -329,27 +503,26 @@ async function handleMoveIntent(input: string): Promise<string> {
   }
 }
 
-async function handleAskIntent(input: string): Promise<string> {
+async function handleAskIntent(input: string, conversationMemory?: ConversationMemory): Promise<string> {
   try {
     // Show AI thinking animation while the real LLM processes
-    const aiUI = new TerminalUI();
-    console.log('\n🧠 Connecting to DeepSeek-Coder AI...');
-    aiUI.startLoading('🤖 AI is thinking deeply about your question...', 0);
+    const aiUI = new ImprovedTerminalUI();
+    aiUI.startLoading('AI is thinking deeply about your question', 0);
     
     // Call the actual ask command which uses DeepSeek-Coder via Ollama
-    await askCommand(input);
+    await askCommand(input, conversationMemory);
     
     aiUI.stopLoading();
-    return `✅ Analysis complete! The formatted results are displayed above with colors, emojis, and detailed insights! 🎯`;
+    return `Analysis complete! The formatted results are displayed above with detailed insights`;
   } catch (error) {
-    return `❌ Sorry, I encountered an error while analyzing your question: ${error} 🔧`;
+    return `Sorry, I encountered an error while analyzing your question: ${error}`;
   }
 }
 
 async function handleSelfImprovementIntent(input: string): Promise<string> {
   try {
     // Show self-analysis animation
-    const improveUI = new TerminalUI();
+    const improveUI = new ImprovedTerminalUI();
     console.log('\n🔍 Initiating self-analysis mode...');
     improveUI.startLoading('🤖 Analyzing my own architecture and code patterns...', 0);
     

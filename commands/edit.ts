@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { createInterface } from 'readline';
 
-export async function editCommand(filePath: string) {
+export async function editCommand(filePath: string, description?: string) {
   console.log(`⚔️  AI-Powered Code Editing: ${filePath}\n`);
 
   // Check if file exists
@@ -13,23 +13,29 @@ export async function editCommand(filePath: string) {
     return;
   }
 
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
+  let rl: any;
+  let editPrompt = '';
 
-  const question = (prompt: string): Promise<string> => {
-    return new Promise((resolve) => {
-      rl.question(prompt, resolve);
+  // If description is provided, use non-interactive mode
+  if (description) {
+    editPrompt = description;
+    console.log(`🎯 Non-interactive mode: ${description}`);
+  } else {
+    // Interactive mode
+    rl = createInterface({
+      input: process.stdin,
+      output: process.stdout
     });
-  };
 
-  try {
-    // Read current file content
+    const question = (prompt: string): Promise<string> => {
+      return new Promise((resolve) => {
+        rl.question(prompt, resolve);
+      });
+    };
+
+    // Read current file content for interactive display
     const currentContent = fs.readFileSync(filePath, 'utf-8');
-    const fileExt = path.extname(filePath);
-    const language = getLanguageFromExtension(fileExt);
-
+    
     console.log('📄 Current file content:');
     console.log('---');
     console.log(currentContent);
@@ -42,7 +48,6 @@ export async function editCommand(filePath: string) {
     console.log('4. ✨ Add new functionality');
 
     const mode = await question('\nEnter choice (1-4): ');
-    let editPrompt = '';
 
     switch (mode.trim()) {
       case '1':
@@ -64,6 +69,13 @@ export async function editCommand(filePath: string) {
         console.log('❌ Invalid choice. Using general improvement mode.');
         editPrompt = 'Improve this code while maintaining the same functionality.';
     }
+  }
+
+  try {
+    // Read current file content
+    const currentContent = fs.readFileSync(filePath, 'utf-8');
+    const fileExt = path.extname(filePath);
+    const language = getLanguageFromExtension(fileExt);
 
     console.log('\n🤖 Processing changes with DeepSeek-Coder...\n');
 
@@ -105,7 +117,9 @@ Return the complete updated file content:`;
     console.log('💡 Make sure Ollama is running: `ollama serve`');
     console.log('💡 And DeepSeek-Coder is installed: `ollama pull deepseek-coder:6.7b`');
   } finally {
-    rl.close();
+    if (rl) {
+      rl.close();
+    }
   }
 }
 

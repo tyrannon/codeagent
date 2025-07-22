@@ -3,8 +3,11 @@ import { generateResponse } from '../llm/router';
 import fs from 'fs';
 import path from 'path';
 import { createInterface } from 'readline';
+import { ImprovedTerminalUI } from '../utils/improvedTerminalUI';
+import { getPromptTemplate, generatePrompt } from '../utils/promptTemplates';
+import { processHTMLContent } from '../utils/htmlProcessor';
 
-export async function writeCommand(filePath: string) {
+export async function writeCommand(filePath: string, description?: string) {
   console.log(`✨ AI-Powered File Creation: ${filePath}\n`);
 
   // Check if file already exists
@@ -13,45 +16,87 @@ export async function writeCommand(filePath: string) {
     return;
   }
 
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
+  let userDescription = description;
 
-  const question = (prompt: string): Promise<string> => {
-    return new Promise((resolve) => {
-      rl.question(prompt, resolve);
+  // Only use interactive mode if no description is provided
+  if (!userDescription) {
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout
     });
-  };
+
+    const question = (prompt: string): Promise<string> => {
+      return new Promise((resolve) => {
+        rl.question(prompt, resolve);
+      });
+    };
+
+    try {
+      console.log('🎯 Tell me what you want to create:');
+      userDescription = await question('📝 Description: ');
+    } finally {
+      rl.close();
+    }
+  } else {
+    console.log(`🎯 Creating file based on chat request: "${description}"`);
+  }
 
   try {
-    console.log('🎯 Tell me what you want to create:');
-    const description = await question('📝 Description: ');
-    
     // Get file extension for context
     const fileExt = path.extname(filePath);
     const fileName = path.basename(filePath);
     const language = getLanguageFromExtension(fileExt);
     
-    console.log('\n🤖 Generating code with DeepSeek-Coder...\n');
+    // Determine if this is a content file (text, songs, stories) or code file
+    const isContentFile = language === 'Text' || userDescription.includes('song') || userDescription.includes('story') || userDescription.includes('poem') || userDescription.includes('lyrics');
+    
+    // Get appropriate prompt template based on file type
+    const template = getPromptTemplate(fileExt, isContentFile);
+    const prompt = generatePrompt(template, userDescription, fileName, language);
 
-    const prompt = `You are an expert software developer. Create a ${language} file named "${fileName}" based on this description:
+    // Start loading indicator with appropriate message
+    const ui = new ImprovedTerminalUI();
+    const loadingMessage = `🤖 ${isContentFile ? 'Generating content' : 'Generating code'} with DeepSeek-Coder`;
+    ui.startLoading(loadingMessage);
 
-"${description}"
+    let generatedCode: string;
+    try {
+      generatedCode = await generateResponse(prompt);
+    } finally {
+      ui.stopLoading();
+    }
 
-Requirements:
-- Write clean, well-documented code
-- Follow ${language} best practices
-- Include appropriate imports/dependencies
-- Add helpful comments
-- Make the code production-ready
-
-File path: ${filePath}
-Language: ${language}
-
-Generate the complete file content:`;
-
-    const generatedCode = await generateResponse(prompt);
+    // Post-process content if required by the template
+    let finalContent = generatedCode;
+    const warnings: string[] = [];
+    
+    if (template.postProcessingRequired) {
+      console.log('🧹 Processing and cleaning generated content...');
+      
+      if (fileExt.toLowerCase() === '.html' || fileExt.toLowerCase() === '.htm') {
+        const htmlResult = await processHTMLContent(generatedCode);
+        finalContent = htmlResult.content;
+        
+        if (htmlResult.warnings.length > 0) {
+          console.log('⚠️  Warnings during processing:');
+          htmlResult.warnings.forEach(warning => console.log(`   • ${warning}`));
+          warnings.push(...htmlResult.warnings);
+        }
+        
+        if (htmlResult.errors.length > 0) {
+          console.log('❌ Errors during processing:');
+          htmlResult.errors.forEach(error => console.log(`   • ${error}`));
+          
+          if (!htmlResult.isValid) {
+            console.log('⚠️  Generated content has validation issues but will proceed with cleanup...');
+          }
+        }
+        
+        if (htmlResult.warnings.length === 0 && htmlResult.errors.length === 0) {
+          console.log('✅ Content processed successfully with no issues!');
+        }
+      }
+    }
     
     // Create directory if it doesn't exist
     const dir = path.dirname(filePath);
@@ -60,22 +105,26 @@ Generate the complete file content:`;
       console.log(`📁 Created directory: ${dir}`);
     }
 
-    // Write the file
-    fs.writeFileSync(filePath, generatedCode);
+    // Write the file with processed content
+    fs.writeFileSync(filePath, finalContent);
     
     console.log('✅ File created successfully!\n');
     console.log(`📄 Created: ${filePath}`);
     console.log(`📏 Size: ${fs.statSync(filePath).size} bytes`);
     console.log('\n--- Generated Content ---');
-    console.log(generatedCode);
+    console.log(finalContent);
+    
+    // Show processing summary
+    if (warnings.length > 0) {
+      console.log(`\n⚠️  Processing completed with ${warnings.length} warning(s)`);
+    }
+    
     console.log('\n🎉 Ready to use!');
 
   } catch (error) {
     console.error('❌ Error creating file:', error.message);
     console.log('💡 Make sure Ollama is running: `ollama serve`');
     console.log('💡 And DeepSeek-Coder is installed: `ollama pull deepseek-coder:6.7b`');
-  } finally {
-    rl.close();
   }
 }
 
