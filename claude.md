@@ -13,6 +13,15 @@ A fully local Claude Code-style terminal assistant for your codebase, powered by
 - Local LLM (no cloud)
 - CLI-first, fast, and private
 
+## Architecture
+
+For comprehensive technical details, see [ARCHITECTURE.md](./ARCHITECTURE.md) which covers:
+- **Compound Intent Recognition System** - Multi-operation parsing and dependency resolution
+- **Sequential Execution Engine** - Real-time progress tracking with rollback capabilities  
+- **AI Content Generation Pipeline** - Template-based prompting with post-processing
+- **Modular Component Design** - Extensible architecture for new operations and file types
+- **Performance & Security** - Local processing, automatic backups, validation systems
+
 ## Usage
 
 ```
@@ -531,6 +540,8 @@ CodeAgent now supports **compound natural language requests** that involve multi
 
 #### Implementation Architecture:
 
+> 📋 **Full Technical Details**: See [ARCHITECTURE.md](./ARCHITECTURE.md) for comprehensive system design, data flow diagrams, and extension points.
+
 **Core Files:**
 - `/utils/compoundIntentRecognizer.ts` - Multi-operation parsing engine
 - `/utils/compoundOperationExecutor.ts` - Sequential execution with dependencies
@@ -576,6 +587,108 @@ CodeAgent now supports **compound natural language requests** that involve multi
 - Ensures production-ready output
 
 This enhancement maintains CodeAgent's speed and simplicity while dramatically expanding capabilities for complex multi-step operations and high-quality content generation.
+
+## 🚀 Roadmap & Next Steps
+
+### 🎯 **Current Status: Compound Operations Working**
+✅ **Major Milestone Achieved**: Natural language compound operations fully functional  
+✅ **Quality Pipeline**: Enhanced HTML/CSS generation with cleanup  
+✅ **Progress Tracking**: Real-time spinners and step-by-step execution  
+✅ **Architecture**: Comprehensive documentation and modular design
+
+### 📋 **Immediate Next Steps (High Priority)**
+
+#### 1. Content Quality Polish
+- **Apply HTML processor to CSS files** - Remove markdown blocks from generated CSS
+- **Enhance edit command prompts** - Return clean code without AI explanations  
+- **Complete validation pipeline** - Ensure all generated content is production-ready
+
+#### 2. Multi-Model Integration  
+- **Add Llama2 7B Chat model** - For creative content (songs, poems, stories)
+- **Implement content classification** - Auto-detect code vs creative requests
+- **Create model routing system** - Smart model selection based on request type
+
+```bash
+# Future usage examples:
+> write a song about programming in test2/song.txt    # → Llama2 7B Chat
+> create a react component for user auth              # → DeepSeek-Coder 6.7B  
+> write documentation for the API                     # → Phi-3 Mini
+```
+
+### 🎨 **Medium-Term Enhancements**
+
+#### 3. Enhanced Parsing System
+- **Modular regex pattern system** - Better maintainability and extensibility
+- **Comprehensive test coverage** - Automated testing for all parsing patterns
+- **Error handling improvements** - More graceful failure recovery
+
+#### 4. User Experience Improvements
+- **Interactive compound operations** - Step-by-step confirmation for complex workflows
+- **Undo/redo system** - Easily revert changes from compound operations
+- **Template customization** - User-defined prompt templates for specific use cases
+
+### 🌟 **Future Vision (Long-term)**
+
+#### 5. Advanced Workflow Support
+- **Git integration** - Automatic commit creation for compound operations
+- **Project templates** - Full project scaffolding from natural language
+- **Team collaboration** - Shared context and collaborative code generation
+
+#### 6. Plugin Ecosystem
+- **Third-party operations** - Community-contributed operation types
+- **Custom model integration** - Support for additional AI models
+- **External tool connections** - Integration with popular development tools
+
+#### 7. Enterprise Features
+- **Code review automation** - AI-powered code review with compound operations
+- **Documentation generation** - Automatic API docs and README creation
+- **Refactoring workflows** - Large-scale codebase modernization
+
+### 📊 **Success Metrics & Goals**
+
+**Quality Targets:**
+- **400%+ improvement** in creative content quality (vs current DeepSeek-only)
+- **95%+ accuracy** for content type classification
+- **Sub-500ms response** for model routing decisions
+
+**User Experience Goals:**
+- **Zero learning curve** for new operation types
+- **Seamless model switching** (transparent to user)
+- **Comprehensive error recovery** with actionable suggestions
+
+**Technical Objectives:**
+- **Modular architecture** supporting 10+ operation types
+- **Plugin system** for community extensions
+- **Enterprise-grade reliability** with comprehensive testing
+
+### 🎯 **Immediate Action Items**
+
+**This Week:**
+1. ✅ Polish CSS content generation (remove markdown artifacts)
+2. ✅ Add Llama2 7B Chat for creative content
+3. ✅ Implement basic content classification
+
+**Next Week:**
+1. 🔧 Complete multi-model routing system
+2. 📝 Add comprehensive test coverage
+3. 🎨 Enhance user experience with better error messages
+
+**This Month:**
+1. 🚀 Launch plugin architecture foundation
+2. 📋 Add project template system
+3. 🌐 Community feedback and iteration
+
+### 💡 **Get Involved**
+
+The compound operation system represents a **major breakthrough** in AI-powered development tools. We're building the future of natural language programming interfaces.
+
+**Try it now:**
+```bash
+npx tsx cli.ts chat
+> in my project folder create a react component and add styling and connect them together with tests
+```
+
+**Contribute:** See [ARCHITECTURE.md](./ARCHITECTURE.md) for technical details and extension points.
 
 ---
 
