@@ -1,6 +1,57 @@
 {
-  "model": "deepseek-coder:6.7b",
-  "ollama_url": "http://localhost:11434",
-  "temperature": 0.2,
-  "max_tokens": 1024
+  "models": {
+    "code": {
+      "name": "qwen2.5-coder:7b",
+      "ollama_url": "http://localhost:11434",
+      "temperature": 0.1,
+      "max_tokens": 2048,
+      "use_cases": ["code_generation", "code_editing", "refactoring", "debugging", "file_operations", "programming_tasks"],
+      "specializations": ["typescript", "javascript", "python", "go", "rust", "html", "css"],
+      "strengths": ["precise_code_generation", "syntax_accuracy", "context_preservation", "incremental_editing"]
+    },
+    "analysis": {
+      "name": "qwen3:latest",
+      "ollama_url": "http://localhost:11434",
+      "temperature": 0.3,
+      "max_tokens": 6144,
+      "use_cases": ["analysis", "documentation", "explanations", "complex_reasoning", "compound_planning"],
+      "specializations": ["system_design", "architecture_analysis", "requirements_analysis", "strategic_planning"],
+      "strengths": ["deep_reasoning", "thinking_capability", "comprehensive_analysis", "structured_planning"],
+      "thinking_enabled": true
+    },
+    "creative": {
+      "name": "qwen3:latest",
+      "ollama_url": "http://localhost:11434", 
+      "temperature": 0.8,
+      "max_tokens": 2048,
+      "use_cases": ["songs", "poems", "stories", "creative_writing", "marketing_content"],
+      "specializations": ["narrative_generation", "content_creation", "brainstorming"],
+      "strengths": ["creativity", "natural_language", "engaging_content"]
+    },
+    "fallback": {
+      "name": "qwen2.5-coder:7b",
+      "ollama_url": "http://localhost:11434",
+      "temperature": 0.4,
+      "max_tokens": 800,
+      "use_cases": ["simple_tasks", "general_purpose", "backup_operations"]
+    }
+  },
+  "routing": {
+    "default": "analysis",
+    "auto_detect": true,
+    "confidence_threshold": 0.6,
+    "enable_performance_tracking": true,
+    "enable_health_checks": true,
+    "qwen_specific": {
+      "use_thinking_for_compound": true,
+      "thinking_threshold_complexity": 0.5,
+      "favor_analysis_model": true,
+      "analysis_weight_multiplier": 3.0,
+      "question_detection_boost": 2.0,
+      "code_model_file_types": [".ts", ".js", ".tsx", ".jsx", ".py", ".go", ".rs", ".html", ".css", ".scss", ".json", ".yaml", ".yml", ".sql", ".sh"],
+      "analysis_model_operations": ["compound_planning", "architecture_analysis", "system_design", "complex_explanations", "questions", "capabilities", "explanations"],
+      "force_analysis_for_compound": true,
+      "force_analysis_for_questions": true
+    }
+  }
 } 

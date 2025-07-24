@@ -37,7 +37,10 @@ interface ChatSession {
 
 const CHAT_HISTORY_FILE = '.codeagent-chat-history.json';
 
-export async function chatCommand(initialPrompt?: string): Promise<void> {
+export async function chatCommand(
+  initialPrompt?: string, 
+  options: { model?: string; showReasoning?: boolean; validationArgs?: string[] } = {}
+): Promise<void> {
   const contextManager = new ContextManager();
   const leetcodeManager = new LeetCodeManager();
   const conversationMemory = new ConversationMemory();
@@ -65,7 +68,7 @@ export async function chatCommand(initialPrompt?: string): Promise<void> {
     ], 'Welcome to CodeAgent');
     console.log(); // Add newline for spacing
     
-    await processUserInput(initialPrompt, session, contextManager, leetcodeManager, conversationMemory);
+    await processUserInput(initialPrompt, session, contextManager, leetcodeManager, conversationMemory, options.validationArgs, options);
     await saveChatHistory(session);
     return;
   }
@@ -127,7 +130,7 @@ export async function chatCommand(initialPrompt?: string): Promise<void> {
       return;
     }
 
-    await processUserInput(userInput, session, contextManager, leetcodeManager, conversationMemory);
+    await processUserInput(userInput, session, contextManager, leetcodeManager, conversationMemory, options.validationArgs, { model: options.model, showReasoning: options.showReasoning });
     rl.prompt();
   });
 
@@ -142,7 +145,9 @@ async function processUserInput(
   session: ChatSession, 
   contextManager: ContextManager,
   leetcodeManager: LeetCodeManager,
-  conversationMemory: ConversationMemory
+  conversationMemory: ConversationMemory,
+  validationArgs?: string[],
+  options?: { model?: string; showReasoning?: boolean }
 ): Promise<void> {
   // Add user message to session
   session.messages.push({
@@ -208,7 +213,7 @@ async function processUserInput(
     }
 
     // Try compound intent recognition first
-    const compoundIntent = recognizeCompoundIntent(input);
+    const compoundIntent = await recognizeCompoundIntent(input);
     contextManager.updateContext(compoundIntent.isCompound ? 'compound' : compoundIntent.operations[0]?.intent || 'ask', input);
 
     // Start minimal loading
@@ -224,12 +229,12 @@ async function processUserInput(
     if (compoundIntent.isCompound) {
       // Handle compound operations
       console.log(RichTerminalFormatter.info(`Intent: compound (${compoundIntent.operations.length} operations)`));
-      response = await handleCompoundIntent(compoundIntent);
+      response = await handleCompoundIntent(compoundIntent, validationArgs);
     } else if (compoundIntent.operations.length > 0) {
       // Handle single operation via compound system (for consistency)
       const singleIntent = compoundIntent.operations[0].intent;
       console.log(RichTerminalFormatter.info(`Intent: ${singleIntent}`));
-      response = await handleCompoundIntent(compoundIntent);
+      response = await handleCompoundIntent(compoundIntent, validationArgs);
     } else {
       // Fallback to legacy system for ask/general questions
       const intent = recognizeIntent(input);
@@ -250,7 +255,7 @@ async function processUserInput(
           break;
         case 'ask':
         default:
-          response = await handleAskIntent(input, conversationMemory);
+          response = await handleAskIntent(input, conversationMemory, options || {});
           break;
       }
     }
@@ -281,9 +286,9 @@ async function processUserInput(
   }
 }
 
-async function handleCompoundIntent(compoundIntent: CompoundIntent): Promise<string> {
+async function handleCompoundIntent(compoundIntent: CompoundIntent, validationArgs?: string[]): Promise<string> {
   try {
-    const result = await executeCompoundIntent(compoundIntent);
+    const result = await executeCompoundIntent(compoundIntent, validationArgs);
     
     if (result.success) {
       return `🎉 Compound operation completed successfully!\n\n${result.summary}\n\nAll requested operations have been executed as planned.`;
@@ -503,14 +508,19 @@ async function handleMoveIntent(input: string): Promise<string> {
   }
 }
 
-async function handleAskIntent(input: string, conversationMemory?: ConversationMemory): Promise<string> {
+async function handleAskIntent(input: string, conversationMemory?: ConversationMemory, modelOptions?: { model?: string; showReasoning?: boolean }): Promise<string> {
   try {
     // Show AI thinking animation while the real LLM processes
     const aiUI = new ImprovedTerminalUI();
     aiUI.startLoading('AI is thinking deeply about your question', 0);
     
-    // Call the actual ask command which uses DeepSeek-Coder via Ollama
-    await askCommand(input, conversationMemory);
+    // Call the actual ask command with interactive mode settings
+    await askCommand(input, {
+      ...modelOptions,
+      interactiveMode: true,        // Enable enhanced settings for chat mode
+      showThinkingText: true,       // Show thinking text in interactive mode
+      showReasoning: true           // Show model selection reasoning
+    });
     
     aiUI.stopLoading();
     return `Analysis complete! The formatted results are displayed above with detailed insights`;
